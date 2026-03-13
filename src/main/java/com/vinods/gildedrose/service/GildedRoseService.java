@@ -1,5 +1,7 @@
-package com.gildedrose;
+package com.vinods.gildedrose.service;
 
+import com.gildedrose.Item;
+import com.vinods.gildedrose.GildedRose;
 import org.springframework.stereotype.Service;
 
 @Service

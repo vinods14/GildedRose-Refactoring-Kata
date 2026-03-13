@@ -1,5 +1,6 @@
-package com.gildedrose;
+package com.vinods.gildedrose.controller;
 
+import com.vinods.gildedrose.service.GildedRoseService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,7 +16,7 @@ public class GildedRoseController {
     }
 
     @PostMapping("/update-quality")
-    public Item[] updateQuality(@RequestBody Item[] items) {
+    public com.gildedrose.Item[] updateQuality(@RequestBody com.gildedrose.Item[] items) {
         return service.updateQuality(items);
     }
 }

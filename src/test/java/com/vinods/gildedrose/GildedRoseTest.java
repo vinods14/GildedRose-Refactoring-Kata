@@ -1,4 +1,4 @@
-package com.gildedrose;
+package com.vinods.gildedrose;
 
 import org.junit.jupiter.api.Test;
 
@@ -8,10 +8,10 @@ class GildedRoseTest {
 
     @Test
     void foo() {
-        Item[] items = new Item[] { new Item("foo", 0, 0) };
+        com.gildedrose.Item[] items = new com.gildedrose.Item[] { new com.gildedrose.Item("foo", 0, 0) };
         GildedRose app = new GildedRose(items);
         app.updateQuality();
-        assertEquals("fixme", app.items[0].name);
+        assertEquals("foo", app.items[0].name);
     }
 
 }

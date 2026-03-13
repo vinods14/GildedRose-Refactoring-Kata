@@ -1,4 +1,4 @@
-package com.gildedrose;
+package com.vinods.gildedrose;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
