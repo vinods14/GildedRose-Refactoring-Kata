@@ -1,4 +1,4 @@
-package com.gildedrose;
+package com.vinods.gildedrose;
 
 public class Item {
 
