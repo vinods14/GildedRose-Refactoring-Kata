@@ -11,3 +11,6 @@ bin/
 .gradle
 /build/
 
+# Claude Code
+CLAUDE.md
+
