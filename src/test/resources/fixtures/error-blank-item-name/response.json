@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Item name must not be null or blank",
+  "path": "/api/items/update-quality"
+}

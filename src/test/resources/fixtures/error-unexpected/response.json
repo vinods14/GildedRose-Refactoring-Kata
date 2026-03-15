@@ -1,0 +1,6 @@
+{
+  "status": 500,
+  "error": "Internal Server Error",
+  "message": "An unexpected error occurred",
+  "path": "/api/items/update-quality"
+}

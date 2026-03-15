@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Malformed or unreadable JSON request body",
+  "path": "/api/items/update-quality"
+}
