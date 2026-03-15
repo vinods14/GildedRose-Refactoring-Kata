@@ -59,22 +59,16 @@ Client
 │    if item == null     → throw InvalidItemException         │
 │    if name blank/null  → throw InvalidItemException         │
 │    log.debug("Updating item: 'name'")                       │
-│    strategy = strategyFactory.getStrategy(item.name)        │
+│    strategy = getStrategy(item.name)                        │
 │    strategy.updateQuality(item)                             │
-└──────────┬──────────────────────────────────────────────────┘
-           │  item.name
-           ▼
-┌─────────────────────────────────────────────────────────────┐
-│  ItemUpdateStrategyFactory  [application/factory]           │
 │                                                             │
-│  getStrategy(itemName)                                      │
+│  getStrategy(String itemName)  [private]                    │
 │    Chain of Responsibility — first match wins:              │
 │      SulfurasUpdateStrategy    canHandle?  ──► yes/no       │
 │      AgedBrieUpdateStrategy    canHandle?  ──► yes/no       │
 │      BackstagePassUpdateStrategy canHandle? ─► yes/no       │
 │      ConjuredItemUpdateStrategy  canHandle? ─► yes/no       │
-│      ── no match ──► NormalItemUpdateStrategy (default)     │
-│    log.debug("Selected strategy 'X' for item: 'name'")      │
+│      NormalItemUpdateStrategy    canHandle? ─► true (always)│
 │    return strategy                                          │
 └──────────┬──────────────────────────────────────────────────┘
            │  ItemUpdateStrategy
@@ -86,21 +80,13 @@ Client
 │  final updateQuality(item)                                  │
 │    1. updateQualityBeforeSellIn(item)   ◄── subclass hook   │
 │    2. decrementSellIn(item)             ◄── can override    │
-│    3. if isExpired → updateQualityAfterSellIn(item) ◄─ hook │
-└──────────┬──────────────────────────────────────────────────┘
-           │  calls QualityAdjuster / SellInAdjuster
-           ▼
-┌─────────────────────────────────────────────────────────────┐
-│  QualityAdjuster  [domain/service]                          │
-│  SellInAdjuster   [domain/service]                          │
+│    3. if isExpired(item)                                    │
+│         → updateQualityAfterSellIn(item) ◄── subclass hook  │
 │                                                             │
-│  QualityAdjuster:                                           │
+│  Static helpers (used by all concrete strategies):          │
 │    increaseQuality(item, n)  → capped at MAX_QUALITY (50)   │
 │    decreaseQuality(item, n)  → floored at MIN_QUALITY (0)   │
 │    setQuality(item, n)       → clamped to [0, 50]           │
-│                                                             │
-│  SellInAdjuster:                                            │
-│    decrementSellIn(item)     → item.sellIn -= 1             │
 │    isExpired(item)           → item.sellIn < 0              │
 └─────────────────────────────────────────────────────────────┘
 
@@ -198,17 +184,14 @@ GildedRoseController ──── depends on ──► InventoryUpdateService (i
     │                                           │
     │                                           ▼ (implemented by)
     │                               GildedRoseInventoryService
-    │                                           │
-    │                               depends on  ▼
-ItemMapper (MapStruct)          ItemUpdateStrategyFactory
-    │                                           │
-    │                               depends on  ▼
-    │                           List<ItemUpdateStrategy>
-    │                             (chain of responsibility)
-    │                                           │
-    │                                    each strategy
-    │                               depends on  ▼
-    │                           QualityAdjuster + SellInAdjuster
+    │                                 holds List<ItemUpdateStrategy>
+    │                                 owns private getStrategy()
+    │
+    │                              each strategy extends
+    │                           BaseQualityUpdateStrategy
+    │                             (static quality helpers)
+    │
+ItemMapper (MapStruct)
     │
     ▼
 ItemRequest ──(mapper)──► Item ──(mapper)──► ItemResponse
@@ -219,19 +202,18 @@ ItemRequest ──(mapper)──► Item ──(mapper)──► ItemResponse
 ## Sequence Diagram (text form)
 
 ```
-Client  Controller    Mapper    Service      Factory     Strategy   Adjusters
-  │         │            │         │             │            │          │
-  │─POST───►│            │         │             │            │          │
-  │         │─toItems()─►│         │             │            │          │
-  │         │◄─Item[]────│         │             │            │          │
-  │         │─updateInventory()───►│             │            │          │
-  │         │            │         │─getStrategy(name)───────►│          │
-  │         │            │         │◄─strategy───────────────│          │
-  │         │            │         │─updateQuality(item)──────────────►  │
-  │         │            │         │              │           │─increase/decrease
-  │         │            │         │              │           │◄─────────│
-  │         │◄────────────────────Item[] mutated  │            │          │
-  │         │─toItemResponses()──►│               │            │          │
-  │         │◄─ItemResponse[]────│               │            │          │
-  │◄200─────│            │         │             │            │          │
+Client  Controller    Mapper    Service      Strategy
+  │         │            │         │            │
+  │─POST───►│            │         │            │
+  │         │─toItems()─►│         │            │
+  │         │◄─Item[]────│         │            │
+  │         │─updateInventory()───►│            │
+  │         │            │         │─getStrategy(name)          │
+  │         │            │         │  (stream.filter.findFirst) │
+  │         │            │         │─updateQuality(item)───────►│
+  │         │            │         │              │  static helpers mutate item
+  │         │◄────────────────────Item[] mutated  │
+  │         │─toItemResponses()──►│               │
+  │         │◄─ItemResponse[]────│               │
+  │◄200─────│            │         │             │
 ```

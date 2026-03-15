@@ -151,7 +151,7 @@ Never use `System.out` or `java.util.logging`.
 | `ERROR` | System failure, requires immediate attention | Uncaught exception in `handleGenericException` |
 | `WARN` | Bad input, expected-but-wrong state | Null item, blank item name, malformed JSON |
 | `INFO` | Major business events, entry/exit of use case | "Received update-quality request for N item(s)" |
-| `DEBUG` | Per-item detail; useful in development | "Updating item: 'name'", "Selected strategy 'X'" |
+| `DEBUG` | Per-item detail; useful in development | "Updating item: 'name'" |
 
 ```java
 // CORRECT — SLF4J placeholder syntax (lazy evaluation)
@@ -242,7 +242,7 @@ Examples from this project:
 updateQuality_decreasesQualityByOne_forNormalItem()
 updateInventory_throwsInvalidItemException_forNullItem()
 returns400_whenInvalidItemExceptionThrown()
-getStrategy_returnsNormalStrategy_forUnknownItem()
+selectsNormalStrategy_forUnknownItem()
 ```
 
 ### 2.4 Types of Tests Required
@@ -259,8 +259,7 @@ getStrategy_returnsNormalStrategy_forUnknownItem()
 | Layer | Spring context | What to mock |
 |---|---|---|
 | Domain strategies | None | Nothing — plain Java instantiation |
-| Domain services (`QualityAdjuster`, `SellInAdjuster`) | None | Nothing |
-| Application service | None | Nothing (use real `ItemUpdateStrategyFactory`) |
+| Application service | None | Nothing (use real `List.of(...)` strategies) |
 | Controller | `@WebMvcTest` (web slice only) | `InventoryUpdateService`, `ItemMapper` |
 
 ---
@@ -327,7 +326,7 @@ Follow the **Conventional Commits** specification.
 |---|---|---|
 | `feat` | New feature | `feat(strategy): add ConjuredItemUpdateStrategy` |
 | `fix` | Bug fix | `fix(quality): cap quality at 50 for aged brie` |
-| `refactor` | Code restructuring (no behaviour change) | `refactor(factory): extract createStrategies helper` |
+| `refactor` | Code restructuring (no behaviour change) | `refactor(strategy): simplify base class by inlining helpers` |
 | `test` | Test additions or fixes | `test(controller): add 400 handler tests` |
 | `docs` | Documentation only | `docs(arch): add hexagonal architecture diagram` |
 | `style` | Formatting, no logic change | `style(service): reorder imports` |
@@ -352,7 +351,7 @@ fix(strategy): prevent quality exceeding 50 for backstage passes
 
 Backstage pass logic was not applying the MAX_QUALITY cap when
 the base increase pushed quality above 50 in the ≤5 day window.
-Added QualityAdjuster.increaseQuality() call to enforce the cap.
+Added increaseQuality() helper call to enforce the cap.
 
 Closes #47
 ```
@@ -433,7 +432,7 @@ is too large for one PR, use a feature branch as the target and submit sub-PRs a
 ## Changes
 <!-- Bullet list of key changes -->
 - Added `ConjuredItemUpdateStrategy` implementing 2× degradation
-- Registered strategy in `ItemUpdateStrategyFactory`
+- Registered strategy in `GildedRoseConfiguration`
 - Added constant `ItemNames.CONJURED_PREFIX`
 
 ## Tests

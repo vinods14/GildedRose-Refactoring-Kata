@@ -18,9 +18,8 @@ com.vinods.gildedrose
   │     └── mapper/            MapStruct mapper interfaces
   │
   ├── application/
-  │     ├── factory/           Object factories (strategy selection, etc.)
   │     ├── port/              Input port interfaces (contracts for use cases)
-  │     └── service/           Application service implementations (orchestration only)
+  │     └── service/           Application service implementations (orchestration + strategy selection)
   │
   ├── common/
   │     └── exception/         Shared exceptions and error envelope DTOs
@@ -30,8 +29,7 @@ com.vinods.gildedrose
   ├── constants/               Package-private constant holders (no instances)
   │
   └── domain/
-        ├── service/           Domain services (pure Java, no Spring)
-        └── strategy/          Strategy implementations (pure Java, no Spring)
+        └── strategy/          Strategy interface, base class, and 5 concrete implementations
 ```
 
 **Rule:** Dependency direction flows inward only.
@@ -54,7 +52,6 @@ com.vinods.gildedrose
 | Strategy interface | `<Subject>Strategy` | `ItemUpdateStrategy` |
 | Strategy base class | `Base<Subject>Strategy` | `BaseQualityUpdateStrategy` |
 | Strategy implementation | `<ItemType>UpdateStrategy` | `AgedBrieUpdateStrategy` |
-| Factory | `<Product>Factory` | `ItemUpdateStrategyFactory` |
 | Controller | `<Domain>Controller` | `GildedRoseController` |
 | Exception handler | `GlobalExceptionHandler` | — |
 | Custom exception | `<Cause>Exception` | `InvalidItemException` |
@@ -94,14 +91,18 @@ Domain and application-service classes must not carry Spring annotations (`@Serv
 `config/GildedRoseConfiguration.java`.
 
 ```java
-// CORRECT — domain service, no Spring
-public class QualityAdjuster {
-    public void increaseQuality(Item item, int amount) { ... }
+// CORRECT — domain strategy, no Spring
+public class AgedBrieUpdateStrategy extends BaseQualityUpdateStrategy {
+    @Override
+    protected void updateQualityBeforeSellIn(Item item) {
+        increaseQuality(item, 1);
+    }
+    // ...
 }
 
 // WRONG — Spring leaks into domain
 @Service
-public class QualityAdjuster { ... }
+public class AgedBrieUpdateStrategy extends BaseQualityUpdateStrategy { ... }
 ```
 
 ### 3.2 Constants Classes — Utility Pattern
@@ -153,18 +154,14 @@ public class ConjuredItemUpdateStrategy extends BaseQualityUpdateStrategy {
 
     private static final int CONJURED_DEGRADATION = 2;
 
-    public ConjuredItemUpdateStrategy(QualityAdjuster qa, SellInAdjuster sia) {
-        super(qa, sia);
-    }
-
     @Override
     protected void updateQualityBeforeSellIn(Item item) {
-        qualityAdjuster.decreaseQuality(item, CONJURED_DEGRADATION);
+        decreaseQuality(item, CONJURED_DEGRADATION);   // static helper from base
     }
 
     @Override
     protected void updateQualityAfterSellIn(Item item) {
-        qualityAdjuster.decreaseQuality(item, CONJURED_DEGRADATION);
+        decreaseQuality(item, CONJURED_DEGRADATION);   // only called when expired
     }
 
     @Override
@@ -176,10 +173,16 @@ public class ConjuredItemUpdateStrategy extends BaseQualityUpdateStrategy {
 
 **Step 2** — Add the item name constant (if new) to `constants/ItemNames.java`.
 
-**Step 3** — Register the strategy in `ItemUpdateStrategyFactory.createStrategies()`:
+**Step 3** — Register the strategy in `GildedRoseConfiguration.inventoryUpdateService()`:
 
 ```java
-strategies.add(new ConjuredItemUpdateStrategy(qualityAdjuster, sellInAdjuster));
+return new GildedRoseInventoryService(List.of(
+    new SulfurasUpdateStrategy(),
+    new AgedBrieUpdateStrategy(),
+    new BackstagePassUpdateStrategy(),
+    new ConjuredItemUpdateStrategy(),   // ← add here, before NormalItemUpdateStrategy
+    new NormalItemUpdateStrategy()
+));
 ```
 
 No other file needs to change.
@@ -310,7 +313,7 @@ non-null inputs once the guard has passed.
 
 | Test type | Convention | Example |
 |---|---|---|
-| Unit test for a class | `<ClassName>Test` | `QualityAdjusterTest` |
+| Unit test for a class | `<ClassName>Test` | `GildedRoseInventoryServiceTest` |
 | Slice test (web layer) | `<ClassName>Test` with `@WebMvcTest` | `GildedRoseControllerTest` |
 
 ### Test Method Naming
@@ -348,8 +351,7 @@ void updateInventory_updatesSingleItem() {
 | Layer | Test tool | Spring context | What is mocked |
 |---|---|---|---|
 | Domain strategies | JUnit 5, plain Java | None | Nothing |
-| Domain services (QualityAdjuster etc.) | JUnit 5, plain Java | None | Nothing |
-| Application service | JUnit 5, plain Java | None | Nothing (use real factory) |
+| Application service | JUnit 5, plain Java | None | Nothing (use real `List.of(...)` strategies) |
 | Controller | `@WebMvcTest` + MockMvc | Web slice only | `InventoryUpdateService`, `ItemMapper` |
 
 **Rule:** Never use `@SpringBootTest` for unit tests. Web slice tests use `@WebMvcTest`.
@@ -456,7 +458,7 @@ schema is visible in Swagger UI.
 New item type?
   → domain/strategy/<ItemType>UpdateStrategy.java
   → constants/ItemNames.java  (add name constant)
-  → application/factory/ItemUpdateStrategyFactory.java  (register)
+  → config/GildedRoseConfiguration.java  (register in List.of(...), before NormalItemUpdateStrategy)
   → No other file changes needed
 
 New endpoint?
