@@ -1,12 +1,12 @@
 package com.vinods.gildedrose.config;
 
-import com.vinods.gildedrose.application.factory.ItemUpdateStrategyFactory;
 import com.vinods.gildedrose.application.port.InventoryUpdateService;
 import com.vinods.gildedrose.application.service.GildedRoseInventoryService;
-import com.vinods.gildedrose.domain.service.QualityAdjuster;
-import com.vinods.gildedrose.domain.service.SellInAdjuster;
+import com.vinods.gildedrose.domain.strategy.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 /**
  * Spring configuration that wires domain and application-service objects as beans.
@@ -15,12 +15,8 @@ import org.springframework.context.annotation.Configuration;
  * application internals. All domain and application-service classes remain plain
  * Java objects, keeping them framework-agnostic and easy to unit-test.
  *
- * <p>Wiring overview:
- * <pre>
- *   QualityAdjuster  ─┐
- *                     ├─► ItemUpdateStrategyFactory ─► GildedRoseInventoryService
- *   SellInAdjuster  ──┘                                       (as InventoryUpdateService port)
- * </pre>
+ * <p>This is the composition root: all concrete strategy classes are registered here
+ * in priority order (most-specific first, NormalItemUpdateStrategy last as default).
  *
  * Demonstrates:
  * <ul>
@@ -32,49 +28,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class GildedRoseConfiguration {
 
-    /**
-     * Provides the domain service responsible for quality bound enforcement.
-     *
-     * @return a new {@link QualityAdjuster} instance
-     */
     @Bean
-    public QualityAdjuster qualityAdjuster() {
-        return new QualityAdjuster();
-    }
-
-    /**
-     * Provides the domain service responsible for sell-in date management.
-     *
-     * @return a new {@link SellInAdjuster} instance
-     */
-    @Bean
-    public SellInAdjuster sellInAdjuster() {
-        return new SellInAdjuster();
-    }
-
-    /**
-     * Provides the strategy factory, injecting the domain services it needs.
-     *
-     * @param qualityAdjuster service for quality manipulation
-     * @param sellInAdjuster  service for sell-in date manipulation
-     * @return a configured {@link ItemUpdateStrategyFactory}
-     */
-    @Bean
-    public ItemUpdateStrategyFactory itemUpdateStrategyFactory(
-            QualityAdjuster qualityAdjuster,
-            SellInAdjuster sellInAdjuster) {
-        return new ItemUpdateStrategyFactory(qualityAdjuster, sellInAdjuster);
-    }
-
-    /**
-     * Provides the primary input port implementation as a Spring bean.
-     * Declared with the port type so dependents program against the interface.
-     *
-     * @param strategyFactory factory for item-type-specific update strategies
-     * @return an {@link InventoryUpdateService} implementation
-     */
-    @Bean
-    public InventoryUpdateService inventoryUpdateService(ItemUpdateStrategyFactory strategyFactory) {
-        return new GildedRoseInventoryService(strategyFactory);
+    public InventoryUpdateService inventoryUpdateService() {
+        return new GildedRoseInventoryService(List.of(
+                new SulfurasUpdateStrategy(),
+                new AgedBrieUpdateStrategy(),
+                new BackstagePassUpdateStrategy(),
+                new ConjuredItemUpdateStrategy(),
+                new NormalItemUpdateStrategy()  // default — always canHandle()
+        ));
     }
 }

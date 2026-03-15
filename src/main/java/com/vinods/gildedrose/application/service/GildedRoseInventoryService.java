@@ -1,12 +1,13 @@
 package com.vinods.gildedrose.application.service;
 
 import com.vinods.gildedrose.Item;
-import com.vinods.gildedrose.application.factory.ItemUpdateStrategyFactory;
 import com.vinods.gildedrose.application.port.InventoryUpdateService;
 import com.vinods.gildedrose.common.exception.InvalidItemException;
 import com.vinods.gildedrose.domain.strategy.ItemUpdateStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 /**
  * Application service implementing the inventory update port.
@@ -16,27 +17,15 @@ import org.slf4j.LoggerFactory;
  * - This is the IMPLEMENTATION of an input port
  * - It coordinates domain objects but contains NO business logic
  * - Business rules live in domain strategies, not here
- *
- * Demonstrates:
- * - Hexagonal Architecture: Application service orchestrating domain
- * - Dependency Inversion: Depends on abstractions (factory, strategy)
- * - Single Responsibility: Only orchestration, no business logic
- * - Open/Closed: Adding item types doesn't require changing this class
  */
 public class GildedRoseInventoryService implements InventoryUpdateService {
 
     private static final Logger log = LoggerFactory.getLogger(GildedRoseInventoryService.class);
 
-    private final ItemUpdateStrategyFactory strategyFactory;
+    private final List<ItemUpdateStrategy> strategies;
 
-    /**
-     * Constructor with dependency injection.
-     * Demonstrates Dependency Inversion Principle.
-     *
-     * @param strategyFactory Factory for creating update strategies
-     */
-    public GildedRoseInventoryService(ItemUpdateStrategyFactory strategyFactory) {
-        this.strategyFactory = strategyFactory;
+    public GildedRoseInventoryService(List<ItemUpdateStrategy> strategies) {
+        this.strategies = strategies;
     }
 
     /**
@@ -76,7 +65,14 @@ public class GildedRoseInventoryService implements InventoryUpdateService {
             throw new InvalidItemException("Item name must not be null or blank");
         }
         log.debug("Updating item: '{}'", item.name);
-        ItemUpdateStrategy strategy = strategyFactory.getStrategy(item.name);
+        ItemUpdateStrategy strategy = getStrategy(item.name);
         strategy.updateQuality(item);
+    }
+
+    private ItemUpdateStrategy getStrategy(String itemName) {
+        return strategies.stream()
+                .filter(s -> s.canHandle(itemName))
+                .findFirst()
+                .orElseThrow(() -> new InvalidItemException("No strategy found for: " + itemName));
     }
 }

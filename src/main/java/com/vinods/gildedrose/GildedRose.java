@@ -1,8 +1,10 @@
 package com.vinods.gildedrose;
 
-import com.vinods.gildedrose.application.factory.ItemUpdateStrategyFactory;
 import com.vinods.gildedrose.application.port.InventoryUpdateService;
 import com.vinods.gildedrose.application.service.GildedRoseInventoryService;
+import com.vinods.gildedrose.domain.strategy.*;
+
+import java.util.List;
 
 /**
  * External API adapter for the Gilded Rose inventory system.
@@ -36,9 +38,13 @@ class GildedRose {
      */
     public GildedRose(Item[] items) {
         this.items = items;
-        // Wire up dependencies - in production, use DI framework
-        ItemUpdateStrategyFactory factory = new ItemUpdateStrategyFactory();
-        this.inventoryService = new GildedRoseInventoryService(factory);
+        this.inventoryService = new GildedRoseInventoryService(List.of(
+                new SulfurasUpdateStrategy(),
+                new AgedBrieUpdateStrategy(),
+                new BackstagePassUpdateStrategy(),
+                new ConjuredItemUpdateStrategy(),
+                new NormalItemUpdateStrategy()
+        ));
     }
 
     /**

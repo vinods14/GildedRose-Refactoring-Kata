@@ -1,91 +1,189 @@
 package com.vinods.gildedrose.domain.strategy;
 
 import com.vinods.gildedrose.Item;
-import com.vinods.gildedrose.domain.service.QualityAdjuster;
-import com.vinods.gildedrose.domain.service.SellInAdjuster;
+import com.vinods.gildedrose.constants.QualityConstants;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for the Template Method pattern in BaseQualityUpdateStrategy.
- * Uses a concrete test implementation to verify the template method executes steps in correct order.
+ * Tests for the Template Method pattern in BaseQualityUpdateStrategy and
+ * the static quality/sell-in helpers (replacing deleted QualityAdjusterTest
+ * and SellInAdjusterTest).
  */
 class BaseQualityUpdateStrategyTest {
 
+    // -------------------------------------------------------------------------
+    // Template method tests
+    // -------------------------------------------------------------------------
+
     @Test
     void templateMethod_executesStepsInCorrectOrder() {
-        // Arrange
-        QualityAdjuster qualityAdjuster = new QualityAdjuster();
-        SellInAdjuster sellInAdjuster = new SellInAdjuster();
-        TestStrategy strategy = new TestStrategy(qualityAdjuster, sellInAdjuster);
-        Item item = new Item("Test Item", 10, 20);
+        // Use sellIn=0 so the item expires after decrement (sellIn becomes -1)
+        // and all three hooks are exercised.
+        TestStrategy strategy = new TestStrategy();
+        Item item = new Item("Test Item", 0, 20);
 
-        // Act
         strategy.updateQuality(item);
 
-        // Assert - verify all steps were executed in order
         assertTrue(strategy.beforeSellInCalled);
         assertTrue(strategy.decrementSellInCalled);
         assertTrue(strategy.afterSellInCalled);
 
-        // Verify execution order
         assertTrue(strategy.beforeSellInCallOrder < strategy.decrementSellInCallOrder);
         assertTrue(strategy.decrementSellInCallOrder < strategy.afterSellInCallOrder);
     }
 
     @Test
     void templateMethod_decrementsSellIn() {
-        // Arrange
-        QualityAdjuster qualityAdjuster = new QualityAdjuster();
-        SellInAdjuster sellInAdjuster = new SellInAdjuster();
-        TestStrategy strategy = new TestStrategy(qualityAdjuster, sellInAdjuster);
+        TestStrategy strategy = new TestStrategy();
         Item item = new Item("Test Item", 10, 20);
 
-        // Act
         strategy.updateQuality(item);
 
-        // Assert - sellIn should be decremented
         assertEquals(9, item.sellIn);
     }
 
     @Test
-    void templateMethod_allowsOverridingDecrementSellIn() {
-        // Arrange
-        QualityAdjuster qualityAdjuster = new QualityAdjuster();
-        SellInAdjuster sellInAdjuster = new SellInAdjuster();
-        NoDecrementStrategy strategy = new NoDecrementStrategy(qualityAdjuster, sellInAdjuster);
+    void templateMethod_doesNotCallAfterSellIn_whenNotExpired() {
+        TestStrategy strategy = new TestStrategy();
         Item item = new Item("Test Item", 10, 20);
 
-        // Act
         strategy.updateQuality(item);
 
-        // Assert - sellIn should NOT be decremented when overridden
+        assertTrue(strategy.beforeSellInCalled);
+        assertTrue(strategy.decrementSellInCalled);
+        assertFalse(strategy.afterSellInCalled);
+    }
+
+    @Test
+    void templateMethod_callsAfterSellIn_whenExpiredAfterDecrement() {
+        TestStrategy strategy = new TestStrategy();
+        Item item = new Item("Test Item", 0, 20);  // sellIn becomes -1 after decrement
+
+        strategy.updateQuality(item);
+
+        assertTrue(strategy.afterSellInCalled);
+    }
+
+    @Test
+    void templateMethod_allowsOverridingDecrementSellIn() {
+        NoDecrementStrategy strategy = new NoDecrementStrategy();
+        Item item = new Item("Test Item", 10, 20);
+
+        strategy.updateQuality(item);
+
         assertEquals(10, item.sellIn);
         assertTrue(strategy.overriddenDecrementCalled);
     }
 
+    // -------------------------------------------------------------------------
+    // Static helper tests — increaseQuality
+    // -------------------------------------------------------------------------
+
     @Test
-    void protectedMembers_accessibleToSubclasses() {
-        // Arrange
-        QualityAdjuster qualityAdjuster = new QualityAdjuster();
-        SellInAdjuster sellInAdjuster = new SellInAdjuster();
-        TestStrategy strategy = new TestStrategy(qualityAdjuster, sellInAdjuster);
-        Item item = new Item("Test Item", 10, 20);
-
-        // Act
-        strategy.updateQuality(item);
-
-        // Assert - subclass should have access to protected members
-        assertNotNull(strategy.qualityAdjuster);
-        assertNotNull(strategy.sellInAdjuster);
-        assertSame(qualityAdjuster, strategy.qualityAdjuster);
-        assertSame(sellInAdjuster, strategy.sellInAdjuster);
+    void increaseQuality_increasesWithinBounds() {
+        Item item = new Item("Test", 5, 20);
+        TestStrategy.increaseQuality(item, 5);
+        assertEquals(25, item.quality);
     }
 
-    /**
-     * Concrete test implementation to verify template method execution.
-     */
+    @Test
+    void increaseQuality_capsAtMaxQuality() {
+        Item item = new Item("Test", 5, 48);
+        TestStrategy.increaseQuality(item, 5);
+        assertEquals(QualityConstants.MAX_QUALITY, item.quality);
+    }
+
+    @Test
+    void increaseQuality_doesNotExceedMaxWhenAlreadyAtMax() {
+        Item item = new Item("Test", 5, QualityConstants.MAX_QUALITY);
+        TestStrategy.increaseQuality(item, 10);
+        assertEquals(QualityConstants.MAX_QUALITY, item.quality);
+    }
+
+    // -------------------------------------------------------------------------
+    // Static helper tests — decreaseQuality
+    // -------------------------------------------------------------------------
+
+    @Test
+    void decreaseQuality_decreasesWithinBounds() {
+        Item item = new Item("Test", 5, 20);
+        TestStrategy.decreaseQuality(item, 5);
+        assertEquals(15, item.quality);
+    }
+
+    @Test
+    void decreaseQuality_stopsAtMinQuality() {
+        Item item = new Item("Test", 5, 3);
+        TestStrategy.decreaseQuality(item, 5);
+        assertEquals(QualityConstants.MIN_QUALITY, item.quality);
+    }
+
+    @Test
+    void decreaseQuality_doesNotGoNegativeWhenAlreadyAtMin() {
+        Item item = new Item("Test", 5, 0);
+        TestStrategy.decreaseQuality(item, 5);
+        assertEquals(QualityConstants.MIN_QUALITY, item.quality);
+    }
+
+    // -------------------------------------------------------------------------
+    // Static helper tests — setQuality
+    // -------------------------------------------------------------------------
+
+    @Test
+    void setQuality_setsExactValueWithinBounds() {
+        Item item = new Item("Test", 5, 20);
+        TestStrategy.setQuality(item, 35);
+        assertEquals(35, item.quality);
+    }
+
+    @Test
+    void setQuality_clampsAboveMax() {
+        Item item = new Item("Test", 5, 20);
+        TestStrategy.setQuality(item, 100);
+        assertEquals(QualityConstants.MAX_QUALITY, item.quality);
+    }
+
+    @Test
+    void setQuality_clampsBelowMin() {
+        Item item = new Item("Test", 5, 20);
+        TestStrategy.setQuality(item, -10);
+        assertEquals(QualityConstants.MIN_QUALITY, item.quality);
+    }
+
+    // -------------------------------------------------------------------------
+    // Static helper tests — isExpired
+    // -------------------------------------------------------------------------
+
+    @Test
+    void isExpired_returnsFalseWhenSellInPositive() {
+        Item item = new Item("Test", 5, 20);
+        assertFalse(TestStrategy.isExpired(item));
+    }
+
+    @Test
+    void isExpired_returnsFalseWhenSellInZero() {
+        Item item = new Item("Test", 0, 20);
+        assertFalse(TestStrategy.isExpired(item));
+    }
+
+    @Test
+    void isExpired_returnsTrueWhenSellInNegative() {
+        Item item = new Item("Test", -1, 20);
+        assertTrue(TestStrategy.isExpired(item));
+    }
+
+    @Test
+    void isExpired_returnsTrueWellAfterExpiration() {
+        Item item = new Item("Test", -10, 20);
+        assertTrue(TestStrategy.isExpired(item));
+    }
+
+    // -------------------------------------------------------------------------
+    // Test-only concrete implementations
+    // -------------------------------------------------------------------------
+
     private static class TestStrategy extends BaseQualityUpdateStrategy {
         boolean beforeSellInCalled = false;
         boolean decrementSellInCalled = false;
@@ -94,10 +192,6 @@ class BaseQualityUpdateStrategyTest {
         int decrementSellInCallOrder = 0;
         int afterSellInCallOrder = 0;
         private int callCounter = 0;
-
-        TestStrategy(QualityAdjuster qualityAdjuster, SellInAdjuster sellInAdjuster) {
-            super(qualityAdjuster, sellInAdjuster);
-        }
 
         @Override
         protected void updateQualityBeforeSellIn(Item item) {
@@ -124,15 +218,8 @@ class BaseQualityUpdateStrategyTest {
         }
     }
 
-    /**
-     * Test implementation that overrides decrementSellIn to verify it can be customized.
-     */
     private static class NoDecrementStrategy extends BaseQualityUpdateStrategy {
         boolean overriddenDecrementCalled = false;
-
-        NoDecrementStrategy(QualityAdjuster qualityAdjuster, SellInAdjuster sellInAdjuster) {
-            super(qualityAdjuster, sellInAdjuster);
-        }
 
         @Override
         protected void updateQualityBeforeSellIn(Item item) {

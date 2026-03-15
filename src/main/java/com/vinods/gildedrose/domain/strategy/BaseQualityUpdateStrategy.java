@@ -1,8 +1,7 @@
 package com.vinods.gildedrose.domain.strategy;
 
 import com.vinods.gildedrose.Item;
-import com.vinods.gildedrose.domain.service.QualityAdjuster;
-import com.vinods.gildedrose.domain.service.SellInAdjuster;
+import com.vinods.gildedrose.constants.QualityConstants;
 
 /**
  * Abstract base class providing template method and shared functionality
@@ -13,37 +12,10 @@ import com.vinods.gildedrose.domain.service.SellInAdjuster;
  * - Lets subclasses override specific steps without changing the algorithm structure
  *
  * Demonstrates:
- * - Inheritance: Subclasses inherit common behavior
+ * - Inheritance: Subclasses inherit common behaviour
  * - Encapsulation: Protected members hide implementation details
- * - Dependency Inversion: Depends on abstractions (QualityAdjuster, SellInAdjuster)
  */
 public abstract class BaseQualityUpdateStrategy implements ItemUpdateStrategy {
-
-    /**
-     * Domain service for quality adjustments.
-     * Protected to allow subclasses to use it.
-     */
-    protected final QualityAdjuster qualityAdjuster;
-
-    /**
-     * Domain service for sell-in date adjustments.
-     * Protected to allow subclasses to use it.
-     */
-    protected final SellInAdjuster sellInAdjuster;
-
-    /**
-     * Constructor with dependency injection.
-     * Demonstrates Dependency Inversion Principle.
-     *
-     * @param qualityAdjuster Service for quality manipulation
-     * @param sellInAdjuster Service for sell-in date manipulation
-     */
-    protected BaseQualityUpdateStrategy(
-            QualityAdjuster qualityAdjuster,
-            SellInAdjuster sellInAdjuster) {
-        this.qualityAdjuster = qualityAdjuster;
-        this.sellInAdjuster = sellInAdjuster;
-    }
 
     /**
      * Template method defining the standard update algorithm.
@@ -52,9 +24,7 @@ public abstract class BaseQualityUpdateStrategy implements ItemUpdateStrategy {
      * The algorithm follows three steps:
      * 1. Update quality based on current state (before sell-in changes)
      * 2. Decrement sell-in date (if applicable)
-     * 3. Apply additional quality updates if item is expired
-     *
-     * Subclasses customize behavior by overriding the hook methods.
+     * 3. Apply additional quality updates only if item is now expired
      *
      * @param item The item to update
      */
@@ -62,7 +32,9 @@ public abstract class BaseQualityUpdateStrategy implements ItemUpdateStrategy {
     public final void updateQuality(Item item) {
         updateQualityBeforeSellIn(item);
         decrementSellIn(item);
-        updateQualityAfterSellIn(item);
+        if (isExpired(item)) {
+            updateQualityAfterSellIn(item);
+        }
     }
 
     /**
@@ -74,6 +46,17 @@ public abstract class BaseQualityUpdateStrategy implements ItemUpdateStrategy {
     protected abstract void updateQualityBeforeSellIn(Item item);
 
     /**
+     * Hook method: Update quality after sell-in date passes (item is expired).
+     * Only called when isExpired() returns true after decrementSellIn().
+     *
+     * @param item The item to update
+     */
+    protected abstract void updateQualityAfterSellIn(Item item);
+
+    @Override
+    public abstract boolean canHandle(String itemName);
+
+    /**
      * Hook method: Decrement sell-in date.
      * Default implementation decrements by one.
      * Can be overridden (e.g., Sulfuras doesn't decrement).
@@ -81,14 +64,28 @@ public abstract class BaseQualityUpdateStrategy implements ItemUpdateStrategy {
      * @param item The item whose sell-in should be decremented
      */
     protected void decrementSellIn(Item item) {
-        sellInAdjuster.decrementSellIn(item);
+        item.sellIn--;
     }
 
-    /**
-     * Hook method: Update quality after sell-in date passes (if applicable).
-     * Subclasses must implement this to define behavior for expired items.
-     *
-     * @param item The item to update
-     */
-    protected abstract void updateQualityAfterSellIn(Item item);
+    // -------------------------------------------------------------------------
+    // Quality helpers — protected static so concrete strategies call them
+    // without needing injected services.
+    // -------------------------------------------------------------------------
+
+    protected static void increaseQuality(Item item, int amount) {
+        item.quality = Math.min(QualityConstants.MAX_QUALITY, item.quality + amount);
+    }
+
+    protected static void decreaseQuality(Item item, int amount) {
+        item.quality = Math.max(QualityConstants.MIN_QUALITY, item.quality - amount);
+    }
+
+    protected static void setQuality(Item item, int value) {
+        item.quality = Math.max(QualityConstants.MIN_QUALITY,
+                Math.min(QualityConstants.MAX_QUALITY, value));
+    }
+
+    protected static boolean isExpired(Item item) {
+        return item.sellIn < 0;
+    }
 }
