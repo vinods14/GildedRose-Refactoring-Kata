@@ -6,6 +6,7 @@ import com.vinods.gildedrose.adapter.in.web.dto.ItemRequest;
 import com.vinods.gildedrose.adapter.in.web.dto.ItemResponse;
 import com.vinods.gildedrose.adapter.in.web.mapper.ItemMapper;
 import com.vinods.gildedrose.application.port.InventoryUpdateService;
+import com.vinods.gildedrose.common.exception.GlobalExceptionHandler;
 import com.vinods.gildedrose.common.exception.InvalidItemException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

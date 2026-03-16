@@ -1,5 +1,63 @@
 # Gilded Rose starting position in Java
 
+## Spring Profiles
+
+The application ships with three environment profiles. The **default is `dev`** — it
+activates automatically when no profile is specified.
+
+| Profile | Purpose | Logging | Swagger UI |
+|---|---|---|---|
+| `local` *(default)* | Developer's own machine | DEBUG (app) + DEBUG (Spring Web) | Enabled |
+| `dev` | Shared dev / CI server | DEBUG (app) + INFO (framework) | Enabled |
+| `prod` | Production server | WARN only | **Disabled** |
+
+### How to activate each profile
+
+**Local** — default; most verbose, full debug visibility:
+
+```bash
+# Just run — local activates automatically
+./mvnw spring-boot:run
+
+# Or explicitly:
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+java -jar target/gilded-rose-kata-*.jar --spring.profiles.active=local
+
+# IDE — add one of:
+#   VM option:   -Dspring.profiles.active=local
+#   Env var:     SPRING_PROFILES_ACTIVE=local
+```
+
+**Dev** — must be activated explicitly:
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+java -jar target/gilded-rose-kata-*.jar --spring.profiles.active=dev
+```
+
+**Prod** — always supply explicitly at deployment time; never set as the default:
+
+```bash
+# Built JAR
+java -jar target/gilded-rose-kata-*.jar --spring.profiles.active=prod
+
+# Environment variable (recommended for servers / containers)
+SPRING_PROFILES_ACTIVE=prod java -jar target/gilded-rose-kata-*.jar
+
+# Docker
+ENV SPRING_PROFILES_ACTIVE=prod
+
+# Kubernetes (Deployment env or ConfigMap)
+# - name: SPRING_PROFILES_ACTIVE
+#   value: "prod"
+```
+
+> **Note:** Swagger UI is available at `http://localhost:8080/swagger-ui.html` when
+> running with the `local` or `dev` profile. It is intentionally **disabled** in `prod`
+> to prevent API enumeration and information disclosure.
+
+---
+
 ## Run the TextTest Fixture from Command-Line
 
 ```

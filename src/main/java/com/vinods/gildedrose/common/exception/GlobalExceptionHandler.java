@@ -1,7 +1,5 @@
-package com.vinods.gildedrose.adapter.in.web;
+package com.vinods.gildedrose.common.exception;
 
-import com.vinods.gildedrose.common.exception.ErrorResponse;
-import com.vinods.gildedrose.common.exception.InvalidItemException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
