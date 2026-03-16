@@ -6,11 +6,11 @@ import com.vinods.gildedrose.constants.QualityConstants;
 /**
  * Abstract base class providing template method and shared functionality
  * for all item update strategies.
- *
+ * <p>
  * Implements Template Method Pattern:
  * - Defines the skeleton of the update algorithm in updateQuality()
  * - Lets subclasses override specific steps without changing the algorithm structure
- *
+ * <p>
  * Demonstrates:
  * - Inheritance: Subclasses inherit common behaviour
  * - Encapsulation: Protected members hide implementation details
@@ -20,7 +20,7 @@ public abstract class BaseQualityUpdateStrategy implements ItemUpdateStrategy {
     /**
      * Template method defining the standard update algorithm.
      * This method is final to prevent subclasses from changing the algorithm structure.
-     *
+     * <p>
      * The algorithm follows three steps:
      * 1. Update quality based on current state (before sell-in changes)
      * 2. Decrement sell-in date (if applicable)
@@ -53,9 +53,6 @@ public abstract class BaseQualityUpdateStrategy implements ItemUpdateStrategy {
      */
     protected abstract void updateQualityAfterSellIn(Item item);
 
-    @Override
-    public abstract boolean canHandle(String itemName);
-
     /**
      * Hook method: Decrement sell-in date.
      * Default implementation decrements by one.
@@ -82,7 +79,7 @@ public abstract class BaseQualityUpdateStrategy implements ItemUpdateStrategy {
 
     protected static void setQuality(Item item, int value) {
         item.quality = Math.max(QualityConstants.MIN_QUALITY,
-                Math.min(QualityConstants.MAX_QUALITY, value));
+            Math.min(QualityConstants.MAX_QUALITY, value));
     }
 
     protected static boolean isExpired(Item item) {

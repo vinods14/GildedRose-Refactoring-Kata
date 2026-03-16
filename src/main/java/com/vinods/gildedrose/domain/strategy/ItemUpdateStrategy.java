@@ -5,11 +5,11 @@ import com.vinods.gildedrose.Item;
 /**
  * Strategy interface for updating item quality and sell-in values.
  * This is a domain port that defines the contract for all item update behaviors.
- *
+ * <p>
  * Implements Strategy Pattern and Open/Closed Principle:
  * - Closed for modification: interface is stable
  * - Open for extension: new strategies can be added without changing existing code
- *
+ * <p>
  * Demonstrates Interface Segregation Principle:
  * - Small, focused interface with only the methods clients need
  */

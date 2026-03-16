@@ -71,7 +71,7 @@ public class GildedRoseInventoryService implements InventoryUpdateService {
 
     private ItemUpdateStrategy getStrategy(String itemName) {
         return strategies.stream()
-                .filter(s -> s.canHandle(itemName))
+                .filter(strategy -> strategy.canHandle(itemName))
                 .findFirst()
                 .orElseThrow(() -> new InvalidItemException("No strategy found for: " + itemName));
     }
